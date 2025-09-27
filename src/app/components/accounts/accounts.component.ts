@@ -21,7 +21,11 @@ import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
               </svg>
             </button>
             <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Mis Cuentas</h1>
-            <button class="p-2 rounded-lg text-blue-600 dark:text-blue-400">
+            <button 
+              (click)="createAccount()"
+              class="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+              title="Crear nueva cuenta"
+            >
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
               </svg>
@@ -192,12 +196,16 @@ export class AccountsComponent implements OnInit {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'COP',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 0
     }).format(amount);
+  }
+
+  createAccount() {
+    this.router.navigate(['/accounts/create']);
   }
 
   goBack() {

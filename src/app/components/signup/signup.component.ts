@@ -13,12 +13,12 @@ import { SupabaseService } from '../../services/supabase.service';
       <div class="max-w-sm w-full space-y-8">
         <div>
           <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            Create your account
+            Crea tu cuenta
           </h2>
           <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Or
+            O
             <a routerLink="/login" class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
-              sign in to your existing account
+              inicia sesión con tu cuenta existente
             </a>
           </p>
         </div>
@@ -36,25 +36,25 @@ import { SupabaseService } from '../../services/supabase.service';
 
           <div class="mb-5">
             <label for="email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Your email
+              Tu correo electrónico
             </label>
             <input 
               type="email" 
               id="email" 
               formControlName="email"
               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
-              placeholder="name@flowbite.com" 
+              placeholder="correo@ejemplo.com" 
               required 
             />
             <div *ngIf="signupForm.get('email')?.invalid && signupForm.get('email')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-              <span *ngIf="signupForm.get('email')?.hasError('required')">Email is required</span>
-              <span *ngIf="signupForm.get('email')?.hasError('email')">Please enter a valid email</span>
+              <span *ngIf="signupForm.get('email')?.hasError('required')">El correo electrónico es obligatorio</span>
+              <span *ngIf="signupForm.get('email')?.hasError('email')">Por favor ingresa un correo válido</span>
             </div>
           </div>
 
           <div class="mb-5">
             <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Your password
+              Tu contraseña
             </label>
             <input 
               type="password" 
@@ -64,14 +64,14 @@ import { SupabaseService } from '../../services/supabase.service';
               required 
             />
             <div *ngIf="signupForm.get('password')?.invalid && signupForm.get('password')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-              <span *ngIf="signupForm.get('password')?.hasError('required')">Password is required</span>
-              <span *ngIf="signupForm.get('password')?.hasError('minlength')">Password must be at least 6 characters</span>
+              <span *ngIf="signupForm.get('password')?.hasError('required')">La contraseña es obligatoria</span>
+              <span *ngIf="signupForm.get('password')?.hasError('minlength')">La contraseña debe tener al menos 6 caracteres</span>
             </div>
           </div>
 
           <div class="mb-5">
             <label for="confirmPassword" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Confirm password
+              Confirmar contraseña
             </label>
             <input 
               type="password" 
@@ -81,10 +81,10 @@ import { SupabaseService } from '../../services/supabase.service';
               required 
             />
             <div *ngIf="signupForm.get('confirmPassword')?.invalid && signupForm.get('confirmPassword')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-              <span *ngIf="signupForm.get('confirmPassword')?.hasError('required')">Password confirmation is required</span>
+              <span *ngIf="signupForm.get('confirmPassword')?.hasError('required')">La confirmación de contraseña es obligatoria</span>
             </div>
             <div *ngIf="signupForm.hasError('passwordMismatch') && signupForm.get('confirmPassword')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-              Passwords do not match
+              Las contraseñas no coinciden
             </div>
           </div>
 
@@ -99,12 +99,12 @@ import { SupabaseService } from '../../services/supabase.service';
               />
             </div>
             <label for="terms" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-              I agree to the 
-              <a href="#" class="text-blue-600 hover:text-blue-500 dark:text-blue-400">Terms and Conditions</a>
+              Acepto los 
+              <a href="#" class="text-blue-600 hover:text-blue-500 dark:text-blue-400">Términos y Condiciones</a>
             </label>
           </div>
           <div *ngIf="signupForm.get('acceptTerms')?.invalid && signupForm.get('acceptTerms')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-            You must accept the terms and conditions
+            Debes aceptar los términos y condiciones
           </div>
 
           <div>
@@ -119,7 +119,7 @@ import { SupabaseService } from '../../services/supabase.service';
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               </span>
-              {{ isLoading ? 'Creating account...' : 'Create account' }}
+              {{ isLoading ? 'Creando cuenta...' : 'Crear cuenta' }}
             </button>
           </div>
         </form>
@@ -168,9 +168,9 @@ export class SignupComponent {
         const result = await this.supabaseService.signUp(email, password);
         
         if (result.user && !result.user.email_confirmed_at) {
-          this.successMessage = 'Account created! Please check your email to verify your account before signing in.';
+          this.successMessage = '¡Cuenta creada! Revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.';
         } else if (result.user) {
-          this.successMessage = 'Account created successfully! Redirecting to login...';
+          this.successMessage = '¡Cuenta creada exitosamente! Redirigiendo al login...';
           setTimeout(() => {
             this.router.navigate(['/login']);
           }, 2000);

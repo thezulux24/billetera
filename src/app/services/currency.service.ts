@@ -17,7 +17,7 @@ export class CurrencyService {
     { code: 'PEN', name: 'Sol Peruano', symbol: 'S/', locale: 'es-PE' }
   ];
 
-  private currentCurrencySubject = new BehaviorSubject<Currency>(this.availableCurrencies[0]);
+  private currentCurrencySubject = new BehaviorSubject<Currency>(this.availableCurrencies.find(c => c.code === 'COP') || this.availableCurrencies[0]);
   public currentCurrency$ = this.currentCurrencySubject.asObservable();
 
   constructor() {

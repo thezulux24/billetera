@@ -29,26 +29,71 @@ export class GeminiAIService {
     // TODO: Move to environment variables in production
     const apiKey = 'AIzaSyCGMWbT7xEVd31y8KNItsRVyLmDVD3RZTc';
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+    
+    // Try multiple models in order of preference
+    this.initializeModel();
+  }
+
+  private async initializeModel(): Promise<void> {
+    const modelOptions = [
+      'gemini-2.0-flash-001',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-pro',
+      'gemini-1.0-pro'
+    ];
+
+    for (const modelName of modelOptions) {
+      try {
+        this.model = this.genAI.getGenerativeModel({ 
+          model: modelName,
+          generationConfig: {
+            temperature: 0.5,
+            topP: 0.8,
+            topK: 20,
+            maxOutputTokens: 300,
+          }
+        });
+        console.log(`Successfully initialized Gemini model: ${modelName}`);
+        return;
+      } catch (error) {
+        console.warn(`Failed to initialize model ${modelName}:`, error);
+        continue;
+      }
+    }
+
+    // If all models fail, set to null to use local analysis only
+    console.warn('All Gemini models failed to initialize. Using local analysis only.');
+    this.model = null;
   }
 
   async getFinancialAdvice(query: string): Promise<AIResponse> {
+    const context = await this.getFinancialContext();
+    
+    // If no model is available, use local analysis
+    if (!this.model) {
+      console.log('No Gemini model available, using local analysis');
+      return this.getLocalAnalysis(query, context);
+    }
+
     try {
-      // Get user's financial context
-      const context = await this.getFinancialContext();
-      
       const prompt = this.buildAdvicePrompt(query, context);
+      
+      console.log('Sending request to Gemini API...');
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       
-      return this.parseAIResponse(response.text());
+      const responseText = response.text();
+      console.log('Received response from Gemini:', responseText);
       
-    } catch (error) {
+      return this.parseAIResponse(responseText);
+      
+    } catch (error: any) {
       console.error('Error getting AI advice:', error);
-      return {
-        message: 'Lo siento, no puedo procesar tu consulta en este momento. Por favor intenta más tarde.',
-        suggestions: []
-      };
+      
+      // Fallback to local analysis if API fails
+      console.log('Falling back to local analysis due to API error');
+      return this.getLocalAnalysis(query, context);
     }
   }
 
@@ -62,11 +107,11 @@ export class GeminiAIService {
       
       return this.parseAIResponse(response.text());
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error analyzing budget:', error);
       return {
-        message: 'No puedo analizar tu presupuesto en este momento.',
-        suggestions: []
+        message: 'No puedo analizar tu presupuesto en este momento. Por favor verifica tu conexión.',
+        suggestions: ['Intenta más tarde', 'Verifica los datos de tu cuenta']
       };
     }
   }
@@ -81,11 +126,11 @@ export class GeminiAIService {
       
       return this.parseAIResponse(response.text());
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting spending insights:', error);
       return {
-        message: 'No puedo obtener información de gastos en este momento.',
-        suggestions: []
+        message: 'No puedo analizar tus gastos en este momento. Por favor intenta más tarde.',
+        suggestions: ['Verifica que tengas transacciones registradas', 'Intenta más tarde']
       };
     }
   }
@@ -100,11 +145,11 @@ export class GeminiAIService {
       
       return this.parseAIResponse(response.text());
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting savings recommendations:', error);
       return {
-        message: 'No puedo generar recomendaciones de ahorro en este momento.',
-        suggestions: []
+        message: 'No puedo generar recomendaciones de ahorro en este momento. Por favor intenta más tarde.',
+        suggestions: ['Registra más transacciones para mejor análisis', 'Verifica tu conexión']
       };
     }
   }
@@ -148,55 +193,72 @@ export class GeminiAIService {
   }
 
   private buildAdvicePrompt(query: string, context: FinancialContext): string {
-    return `Eres un asesor financiero experto y amigable. Analiza la situación financiera del usuario y responde su consulta.
+    const savingsRate = context.monthlyIncome > 0 ? (context.monthlyNet / context.monthlyIncome * 100).toFixed(1) : '0';
+    
+    return `Asesor financiero para Colombia. Responde MÁXIMO 150 palabras.
 
-CONTEXTO FINANCIERO:
-- Balance total: $${context.totalBalance.toFixed(2)}
-- Ingresos mensuales: $${context.monthlyIncome.toFixed(2)}
-- Gastos mensuales: $${context.monthlyExpenses.toFixed(2)}
-- Balance neto mensual: $${context.monthlyNet.toFixed(2)}
-- Número de cuentas: ${context.accounts.length}
+DATOS: Balance $${context.totalBalance.toLocaleString('es-CO')} COP | Ingresos $${context.monthlyIncome.toLocaleString('es-CO')} | Gastos $${context.monthlyExpenses.toLocaleString('es-CO')} | Ahorro ${savingsRate}%
 
-TRANSACCIONES RECIENTES:
-${context.recentTransactions.slice(0, 5).map(t => 
-  `- ${t.type === 'income' ? 'Ingreso' : 'Gasto'}: $${t.amount.toFixed(2)} - ${t.category?.name || 'Sin categoría'} - ${t.description || 'Sin descripción'}`
-).join('\n')}
+CONSULTA: "${query}"
 
-CONSULTA DEL USUARIO: "${query}"
+RESPONDE:
+- Análisis directo en 1-2 frases
+- Máximo 3 consejos específicos y cortos
+- Una acción concreta para hoy
+- Usa los números de sus datos
+- Español colombiano, directo y útil
 
-INSTRUCCIONES:
-1. Responde en español de manera amigable y profesional
-2. Usa los datos financieros para dar consejos personalizados
-3. Sé conciso pero informativo
-4. Incluye sugerencias específicas y accionables
-5. Si la consulta no está relacionada con finanzas, redirige amablemente hacia temas financieros
-
-Formato de respuesta: Un párrafo principal con el consejo, seguido de 2-3 sugerencias específicas.`;
+IMPORTANTE: Mantén la respuesta CORTA y PRÁCTICA.`;
   }
 
   private buildBudgetAnalysisPrompt(context: FinancialContext): string {
-    return `Eres un asesor financiero experto. Analiza el presupuesto del usuario y proporciona insights valiosos.
+    const spendingRatio = context.monthlyIncome > 0 ? (context.monthlyExpenses/context.monthlyIncome*100).toFixed(1) : '0';
+    const savingsRate = context.monthlyIncome > 0 ? (context.monthlyNet/context.monthlyIncome*100).toFixed(1) : '0';
+    
+    // Agrupar transacciones por categoría para análisis
+    const expensesByCategory: {[key: string]: number} = {};
+    context.recentTransactions
+      .filter(t => t.type === 'expense')
+      .forEach(t => {
+        const category = t.category?.name || 'Sin categoría';
+        expensesByCategory[category] = (expensesByCategory[category] || 0) + t.amount;
+      });
 
-DATOS FINANCIEROS:
-- Balance total: $${context.totalBalance.toFixed(2)}
-- Ingresos mensuales: $${context.monthlyIncome.toFixed(2)}
-- Gastos mensuales: $${context.monthlyExpenses.toFixed(2)}
-- Balance neto: $${context.monthlyNet.toFixed(2)}
-- Ratio gastos/ingresos: ${context.monthlyIncome > 0 ? (context.monthlyExpenses/context.monthlyIncome*100).toFixed(1) : 0}%
+    return `🏦 ANÁLISIS COMPLETO DE PRESUPUESTO - COLOMBIA
 
-CUENTAS:
+📊 MÉTRICAS CLAVE:
+- Balance total: $${context.totalBalance.toLocaleString('es-CO')} COP
+- Ingresos mensuales: $${context.monthlyIncome.toLocaleString('es-CO')} COP  
+- Gastos mensuales: $${context.monthlyExpenses.toLocaleString('es-CO')} COP
+- Balance neto: $${context.monthlyNet.toLocaleString('es-CO')} COP
+- Ratio de gastos: ${spendingRatio}% de ingresos
+- Tasa de ahorro: ${savingsRate}%
+
+💳 DISTRIBUCIÓN DE CUENTAS:
 ${context.accounts.map(acc => 
-  `- ${acc.name}: $${acc.balance.toFixed(2)} (${acc.type})`
+  `- ${acc.name}: $${acc.balance.toLocaleString('es-CO')} COP (${acc.type})`
 ).join('\n')}
 
-INSTRUCCIONES:
-1. Evalúa la salud financiera general
-2. Identifica fortalezas y áreas de mejora
-3. Proporciona recomendaciones específicas
-4. Usa un tono profesional pero amigable
-5. Responde en español
+🏷️ GASTOS POR CATEGORÍA (últimas transacciones):
+${Object.entries(expensesByCategory)
+  .sort(([,a], [,b]) => b - a)
+  .slice(0, 5)
+  .map(([category, amount]) => `- ${category}: $${amount.toLocaleString('es-CO')} COP`)
+  .join('\n')}
 
-Analiza si el usuario está gastando más de lo que gana, si tiene buen balance, y qué puede mejorar.`;
+📈 REFERENCIAS COLOMBIA:
+- Tasa de ahorro recomendada: 20%
+- Gastos esenciales ideales: 50% ingresos
+- Gastos no esenciales: 30% ingresos
+
+🎯 ANÁLISIS REQUERIDO:
+1. Evalúa la salud financiera vs estándares colombianos
+2. Identifica la categoría donde más gasta
+3. Calcula cuánto podría ahorrar mensualmente
+4. Propón un presupuesto optimizado específico
+5. Da metas financieras alcanzables para los próximos 3 meses
+
+Sé específico con números y porcentajes. Incluye advertencias si detectas patrones preocupantes.`;
   }
 
   private buildSpendingInsightsPrompt(context: FinancialContext): string {
@@ -340,5 +402,180 @@ Enfócate en insights que ayuden al usuario a entender mejor sus hábitos financ
       suggestions: suggestions.length > 0 ? suggestions : undefined,
       actionItems: actionItems.length > 0 ? actionItems : undefined
     };
+  }
+
+  // Fallback analysis when AI service is not available
+  private getLocalAnalysis(query: string, context: FinancialContext): AIResponse {
+    const savingsRate = context.monthlyIncome > 0 ? (context.monthlyNet / context.monthlyIncome * 100) : 0;
+    const spendingRatio = context.monthlyIncome > 0 ? (context.monthlyExpenses / context.monthlyIncome * 100) : 0;
+
+    // Add local analysis header
+    const header = `🤖 Análisis Local: `;
+
+    // Analyze query type and provide appropriate response
+    const lowerQuery = query.toLowerCase();
+    let result: AIResponse;
+    
+    if (lowerQuery.includes('presupuesto') || lowerQuery.includes('analiz')) {
+      result = this.getBudgetAnalysis(context, savingsRate, spendingRatio);
+    } else if (lowerQuery.includes('ahorro') || lowerQuery.includes('ahorrar')) {
+      result = this.getSavingsAnalysis(context, savingsRate);
+    } else if (lowerQuery.includes('gasto') || lowerQuery.includes('gastar')) {
+      result = this.getSpendingAnalysis(context);
+    } else if (lowerQuery.includes('salud') || lowerQuery.includes('financiera')) {
+      result = this.getFinancialHealthAnalysis(context, savingsRate, spendingRatio);
+    } else if (lowerQuery.includes('emergencia')) {
+      result = this.getEmergencyAnalysis(context);
+    } else {
+      // Default analysis
+      result = this.getGeneralAnalysis(context, savingsRate, spendingRatio);
+    }
+    
+    // Prepend header to message
+    result.message = header + result.message;
+    
+    // Add note about local analysis
+    result.suggestions ??= [];
+    result.suggestions.push('💡 Este análisis se basa en tus datos locales');
+    
+    return result;
+  }
+
+  private getBudgetAnalysis(context: FinancialContext, savingsRate: number, spendingRatio: number): AIResponse {
+    let message = `Balance: $${context.totalBalance.toLocaleString('es-CO')} COP. `;
+    
+    if (savingsRate >= 20) {
+      message += `Excelente ahorro: ${savingsRate.toFixed(1)}% (meta: 20%).`;
+    } else if (savingsRate > 0) {
+      message += `Ahorras ${savingsRate.toFixed(1)}%. Objetivo: llegar al 20%.`;
+    } else {
+      message += `⚠️ No ahorras. Gastas más de lo que ingresas.`;
+    }
+
+    const suggestions = [
+      savingsRate < 20 ? `Meta: ahorrar 20% ($${(context.monthlyIncome * 0.2).toLocaleString('es-CO')} COP)` : 'Mantén tu tasa de ahorro',
+      'Revisa gastos en entretenimiento y comidas',
+      'Separa el ahorro apenas recibas ingresos'
+    ];
+
+    return { message, suggestions };
+  }
+
+  private getSavingsAnalysis(context: FinancialContext, savingsRate: number): AIResponse {
+    const monthlyPotential = Math.max(0, context.monthlyNet);
+    const emergencyFund = context.monthlyExpenses * 6;
+    
+    let message;
+    if (monthlyPotential > 0) {
+      message = `Puedes ahorrar $${monthlyPotential.toLocaleString('es-CO')} COP mensuales. Meta emergencia: $${emergencyFund.toLocaleString('es-CO')} COP.`;
+    } else {
+      message = `Gastas más de lo que ingresas. Necesitas reducir gastos primero.`;
+    }
+
+    const suggestions = [
+      monthlyPotential > 0 ? `Ahorra automáticamente $${monthlyPotential.toLocaleString('es-CO')} COP cada mes` : 'Elimina gastos no esenciales',
+      'Abre cuenta de ahorros separada',
+      `En ${Math.ceil(emergencyFund / Math.max(monthlyPotential, 1))} meses tendrás fondo completo`
+    ];
+
+    return { message, suggestions };
+  }
+
+  private getSpendingAnalysis(context: FinancialContext): AIResponse {
+    const spendingRatio = context.monthlyIncome > 0 ? (context.monthlyExpenses/context.monthlyIncome*100).toFixed(1) : '0';
+    const recentExpenses = context.recentTransactions.filter(t => t.type === 'expense');
+    
+    let message = `Gastas $${context.monthlyExpenses.toLocaleString('es-CO')} COP (${spendingRatio}% de ingresos). `;
+    
+    if (recentExpenses.length > 0) {
+      const avgExpense = recentExpenses.reduce((sum, t) => sum + t.amount, 0) / recentExpenses.length;
+      message += `Promedio por gasto: $${avgExpense.toLocaleString('es-CO')} COP.`;
+    }
+
+    const suggestions = [
+      'Reduce entretenimiento y comidas fuera',
+      'Aplica regla 50/30/20 (necesidades/deseos/ahorros)',
+      'Compara precios antes de comprar'
+    ];
+
+    return { message, suggestions };
+  }
+
+  private getFinancialHealthAnalysis(context: FinancialContext, savingsRate: number, spendingRatio: number): AIResponse {
+    let healthScore = 0;
+    
+    // Calculate health score
+    if (savingsRate >= 20) healthScore += 30;
+    else if (savingsRate >= 10) healthScore += 20;
+    else if (savingsRate > 0) healthScore += 10;
+    
+    if (context.totalBalance >= context.monthlyExpenses * 3) healthScore += 30;
+    else if (context.totalBalance >= context.monthlyExpenses) healthScore += 20;
+    
+    if (spendingRatio <= 70) healthScore += 25;
+    else if (spendingRatio <= 80) healthScore += 15;
+    
+    if (context.accounts.length >= 2) healthScore += 15;
+
+    let message = `Salud financiera: ${healthScore}/100. `;
+    
+    if (healthScore >= 80) {
+      message += `Excelente estado financiero.`;
+    } else if (healthScore >= 60) {
+      message += `Buen estado, con áreas de mejora.`;
+    } else {
+      message += `Necesitas mejorar urgentemente.`;
+    }
+
+    const suggestions = [
+      healthScore < 80 ? `Objetivo: superar 80 puntos` : 'Mantén tus hábitos',
+      'Revisa mensualmente tu progreso',
+      'Aumenta tu tasa de ahorro al 20%'
+    ];
+
+    return { message, suggestions };
+  }
+
+  private getEmergencyAnalysis(context: FinancialContext): AIResponse {
+    const emergencyFund = context.monthlyExpenses * 6;
+    const currentCoverage = context.monthlyExpenses > 0 ? (context.totalBalance / context.monthlyExpenses) : 0;
+    
+    let message = `Fondo emergencia: tienes $${context.totalBalance.toLocaleString('es-CO')} COP (${currentCoverage.toFixed(1)} meses). Meta: $${emergencyFund.toLocaleString('es-CO')} COP (6 meses). `;
+    
+    if (currentCoverage >= 6) {
+      message += `👍 Fondo completo.`;
+    } else if (currentCoverage >= 3) {
+      message += `Fondo básico, mejora a 6 meses.`;
+    } else {
+      message += `⚠️ Fondo insuficiente.`;
+    }
+
+    const monthlyTarget = context.monthlyNet > 0 ? Math.ceil((emergencyFund - context.totalBalance) / context.monthlyNet) : 0;
+
+    const suggestions = [
+      currentCoverage < 6 ? `Faltan ${(6 - currentCoverage).toFixed(1)} meses de gastos` : 'Mantén el fondo intacto',
+      monthlyTarget > 0 ? `Lo alcanzarás en ${monthlyTarget} meses` : 'Necesitas balance positivo primero',
+      'Usa cuenta separada para emergencias'
+    ];
+
+    return { message, suggestions };
+  }
+
+  private getGeneralAnalysis(context: FinancialContext, savingsRate: number, spendingRatio: number): AIResponse {
+    let message = `Balance: $${context.totalBalance.toLocaleString('es-CO')} COP. Ahorras ${savingsRate.toFixed(1)}%. Gastas ${spendingRatio.toFixed(1)}% de ingresos. `;
+    
+    if (savingsRate > 15 && spendingRatio < 75) {
+      message += `Situación sólida.`;
+    } else {
+      message += `Puedes mejorar.`;
+    }
+
+    const suggestions = [
+      'Revisa presupuesto mensualmente',
+      'Aumenta ingresos o reduce gastos',
+      'Meta: ahorrar 20% de ingresos'
+    ];
+
+    return { message, suggestions };
   }
 }

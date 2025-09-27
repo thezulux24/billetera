@@ -13,12 +13,12 @@ import { SupabaseService } from '../../services/supabase.service';
       <div class="max-w-sm w-full space-y-8">
         <div>
           <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            Sign in to your account
+            Inicia sesión en tu cuenta
           </h2>
           <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            Or
+            O
             <a routerLink="/signup" class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
-              create a new account
+              crea una nueva cuenta
             </a>
           </p>
         </div>
@@ -36,25 +36,25 @@ import { SupabaseService } from '../../services/supabase.service';
 
           <div class="mb-5">
             <label for="email" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Your email
+              Tu correo electrónico
             </label>
             <input 
               type="email" 
               id="email" 
               formControlName="email"
               class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
-              placeholder="name@flowbite.com" 
+              placeholder="correo@ejemplo.com" 
               required 
             />
             <div *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-              <span *ngIf="loginForm.get('email')?.hasError('required')">Email is required</span>
-              <span *ngIf="loginForm.get('email')?.hasError('email')">Please enter a valid email</span>
+              <span *ngIf="loginForm.get('email')?.hasError('required')">El correo electrónico es obligatorio</span>
+              <span *ngIf="loginForm.get('email')?.hasError('email')">Por favor ingresa un correo válido</span>
             </div>
           </div>
 
           <div class="mb-5">
             <label for="password" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-              Your password
+              Tu contraseña
             </label>
             <input 
               type="password" 
@@ -64,8 +64,8 @@ import { SupabaseService } from '../../services/supabase.service';
               required 
             />
             <div *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched" class="mt-1 text-sm text-red-600 dark:text-red-400">
-              <span *ngIf="loginForm.get('password')?.hasError('required')">Password is required</span>
-              <span *ngIf="loginForm.get('password')?.hasError('minlength')">Password must be at least 6 characters</span>
+              <span *ngIf="loginForm.get('password')?.hasError('required')">La contraseña es obligatoria</span>
+              <span *ngIf="loginForm.get('password')?.hasError('minlength')">La contraseña debe tener al menos 6 caracteres</span>
             </div>
           </div>
 
@@ -79,7 +79,7 @@ import { SupabaseService } from '../../services/supabase.service';
               />
             </div>
             <label for="remember" class="ms-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-              Remember me
+              Recordarme
             </label>
           </div>
 
@@ -95,7 +95,7 @@ import { SupabaseService } from '../../services/supabase.service';
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               </span>
-              {{ isLoading ? 'Signing in...' : 'Sign in' }}
+              {{ isLoading ? 'Iniciando sesión...' : 'Iniciar sesión' }}
             </button>
           </div>
 
@@ -105,25 +105,25 @@ import { SupabaseService } from '../../services/supabase.service';
               (click)="showForgotPassword = true"
               class="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 font-medium"
             >
-              Forgot your password?
+              ¿Olvidaste tu contraseña?
             </button>
           </div>
         </form>
 
         <!-- Forgot Password Form -->
         <div *ngIf="showForgotPassword" class="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Reset Password</h3>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Restablecer Contraseña</h3>
           <form [formGroup]="resetForm" (ngSubmit)="onResetPassword()">
             <div class="mb-4">
               <label for="resetEmail" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
-                Email address
+                Correo electrónico
               </label>
               <input 
                 type="email" 
                 id="resetEmail" 
                 formControlName="email"
                 class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                placeholder="Enter your email"
+                placeholder="Ingresa tu correo electrónico"
                 required
               />
             </div>
@@ -133,14 +133,14 @@ import { SupabaseService } from '../../services/supabase.service';
                 [disabled]="resetForm.invalid || isResetting"
                 class="flex-1 text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 disabled:opacity-50"
               >
-                {{ isResetting ? 'Sending...' : 'Send Reset Link' }}
+                {{ isResetting ? 'Enviando...' : 'Enviar enlace de restablecimiento' }}
               </button>
               <button 
                 type="button"
                 (click)="showForgotPassword = false"
                 class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-700"
               >
-                Cancel
+                Cancelar
               </button>
             </div>
           </form>

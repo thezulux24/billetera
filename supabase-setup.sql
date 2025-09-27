@@ -1,203 +1,276 @@
--- Base de datos para app de finanzas personales
--- Ejecutar este SQL en el Editor SQL de Supabase
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
--- 1. Extensión UUID si no existe
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- 2. Tabla de perfiles de usuario (extiende auth.users)
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID REFERENCES auth.users(id) PRIMARY KEY,
-    username VARCHAR(50),
-    full_name TEXT,
-    avatar_url TEXT,
-    preferred_currency VARCHAR(3) DEFAULT 'USD',
-    language VARCHAR(5) DEFAULT 'es-ES',
-    timezone VARCHAR(50) DEFAULT 'America/Mexico_City',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+CREATE TABLE public.accounts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name character varying NOT NULL,
+  type character varying NOT NULL,
+  balance numeric DEFAULT 0,
+  currency character varying DEFAULT 'COP'::character varying,
+  color character varying DEFAULT '#3B82F6'::character varying,
+  icon character varying DEFAULT 'credit-card'::character varying,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT accounts_pkey PRIMARY KEY (id),
+  CONSTRAINT accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.categories (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  name character varying NOT NULL,
+  type character varying NOT NULL,
+  color character varying DEFAULT '#10B981'::character varying,
+  icon character varying DEFAULT 'tag'::character varying,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT categories_pkey PRIMARY KEY (id),
+  CONSTRAINT categories_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  username character varying,
+  full_name text,
+  avatar_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  preferred_currency character varying DEFAULT 'COP'::character varying,
+  language character varying DEFAULT 'es-CO'::character varying,
+  timezone character varying DEFAULT 'America/Bogota'::character varying,
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.transactions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  account_id uuid NOT NULL,
+  category_id uuid,
+  type character varying NOT NULL,
+  amount numeric NOT NULL,
+  description text,
+  notes text,
+  date date NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT transactions_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.accounts(id),
+  CONSTRAINT transactions_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id)
 );
 
--- 3. Tabla de cuentas (banco, efectivo, tarjetas, etc.)
-CREATE TABLE IF NOT EXISTS public.accounts (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    type VARCHAR(50) NOT NULL, -- 'bank', 'cash', 'credit_card', 'debit_card', 'savings'
-    balance DECIMAL(12,2) DEFAULT 0,
-    currency VARCHAR(3) DEFAULT 'USD',
-    color VARCHAR(7) DEFAULT '#3B82F6', -- Color hex para la UI
-    icon VARCHAR(50) DEFAULT 'credit-card', -- Icono para la UI
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Default Categories for Colombia
+-- These will be inserted for each user when they create their profile
+
+-- Income Categories (Categorías de Ingresos)
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Salario',
+  'income',
+  '#10B981',
+  'briefcase',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Salario' AND c.type = 'income'
 );
 
--- 4. Tabla de categorías
-CREATE TABLE IF NOT EXISTS public.categories (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    type VARCHAR(20) NOT NULL, -- 'income' o 'expense'
-    color VARCHAR(7) DEFAULT '#10B981',
-    icon VARCHAR(50) DEFAULT 'tag',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Freelance',
+  'income',
+  '#8B5CF6',
+  'computer',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Freelance' AND c.type = 'income'
 );
 
--- 5. Tabla de transacciones
-CREATE TABLE IF NOT EXISTS public.transactions (
-    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    account_id UUID REFERENCES public.accounts(id) ON DELETE CASCADE NOT NULL,
-    category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
-    type VARCHAR(20) NOT NULL, -- 'income' o 'expense'
-    amount DECIMAL(12,2) NOT NULL,
-    description TEXT,
-    notes TEXT,
-    date DATE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Inversiones',
+  'income',
+  '#F59E0B',
+  'trending-up',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Inversiones' AND c.type = 'income'
 );
 
--- 6. Función para actualizar updated_at automáticamente
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Regalos',
+  'income',
+  '#EC4899',
+  'gift',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Regalos' AND c.type = 'income'
+);
 
--- 7. Triggers para updated_at
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_accounts_updated_at BEFORE UPDATE ON public.accounts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON public.transactions FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Otros Ingresos',
+  'income',
+  '#6B7280',
+  'plus-circle',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Otros Ingresos' AND c.type = 'income'
+);
 
--- 8. Función para crear perfil automáticamente cuando se registra un usuario
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.profiles (id, full_name, avatar_url)
-    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'avatar_url');
-    
-    -- Crear categorías por defecto
-    INSERT INTO public.categories (user_id, name, type, color, icon) VALUES
-    (NEW.id, 'Salario', 'income', '#10B981', 'banknotes'),
-    (NEW.id, 'Freelance', 'income', '#059669', 'briefcase'),
-    (NEW.id, 'Inversiones', 'income', '#047857', 'chart-bar'),
-    (NEW.id, 'Otros Ingresos', 'income', '#065F46', 'plus-circle'),
-    (NEW.id, 'Alimentación', 'expense', '#EF4444', 'shopping-cart'),
-    (NEW.id, 'Transporte', 'expense', '#F97316', 'truck'),
-    (NEW.id, 'Vivienda', 'expense', '#8B5CF6', 'home'),
-    (NEW.id, 'Entretenimiento', 'expense', '#EC4899', 'film'),
-    (NEW.id, 'Salud', 'expense', '#06B6D4', 'heart'),
-    (NEW.id, 'Educación', 'expense', '#84CC16', 'academic-cap'),
-    (NEW.id, 'Ropa', 'expense', '#F59E0B', 'shopping-bag'),
-    (NEW.id, 'Otros Gastos', 'expense', '#6B7280', 'dots-horizontal');
-    
-    -- Crear cuenta por defecto
-    INSERT INTO public.accounts (user_id, name, type, balance, color, icon) VALUES
-    (NEW.id, 'Efectivo', 'cash', 0, '#10B981', 'cash'),
-    (NEW.id, 'Cuenta Corriente', 'bank', 0, '#3B82F6', 'credit-card');
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- Expense Categories (Categorías de Gastos)
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Alimentación',
+  'expense',
+  '#EF4444',
+  'utensils',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Alimentación' AND c.type = 'expense'
+);
 
--- 9. Trigger para crear perfil automáticamente
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Transporte',
+  'expense',
+  '#3B82F6',
+  'car',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Transporte' AND c.type = 'expense'
+);
 
--- 10. Row Level Security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Vivienda',
+  'expense',
+  '#059669',
+  'home',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Vivienda' AND c.type = 'expense'
+);
 
--- 11. Políticas de seguridad
-CREATE POLICY "Users can view own profile" ON public.profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Salud',
+  'expense',
+  '#DC2626',
+  'heart',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Salud' AND c.type = 'expense'
+);
 
-CREATE POLICY "Users can view own accounts" ON public.accounts FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own accounts" ON public.accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own accounts" ON public.accounts FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own accounts" ON public.accounts FOR DELETE USING (auth.uid() = user_id);
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Educación',
+  'expense',
+  '#7C3AED',
+  'book-open',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Educación' AND c.type = 'expense'
+);
 
-CREATE POLICY "Users can view own categories" ON public.categories FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own categories" ON public.categories FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own categories" ON public.categories FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own categories" ON public.categories FOR DELETE USING (auth.uid() = user_id);
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Entretenimiento',
+  'expense',
+  '#F97316',
+  'film',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Entretenimiento' AND c.type = 'expense'
+);
 
-CREATE POLICY "Users can view own transactions" ON public.transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own transactions" ON public.transactions FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own transactions" ON public.transactions FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own transactions" ON public.transactions FOR DELETE USING (auth.uid() = user_id);
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Compras',
+  'expense',
+  '#06B6D4',
+  'shopping-bag',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Compras' AND c.type = 'expense'
+);
 
--- 12. Función para actualizar balance de cuenta cuando se crea/actualiza/elimina transacción
-CREATE OR REPLACE FUNCTION update_account_balance()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Si es INSERT o UPDATE
-    IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
-        -- Si es UPDATE, primero revertir la transacción anterior
-        IF TG_OP = 'UPDATE' AND OLD.account_id IS NOT NULL THEN
-            IF OLD.type = 'income' THEN
-                UPDATE public.accounts 
-                SET balance = balance - OLD.amount 
-                WHERE id = OLD.account_id;
-            ELSE
-                UPDATE public.accounts 
-                SET balance = balance + OLD.amount 
-                WHERE id = OLD.account_id;
-            END IF;
-        END IF;
-        
-        -- Aplicar nueva transacción
-        IF NEW.type = 'income' THEN
-            UPDATE public.accounts 
-            SET balance = balance + NEW.amount 
-            WHERE id = NEW.account_id;
-        ELSE
-            UPDATE public.accounts 
-            SET balance = balance - NEW.amount 
-            WHERE id = NEW.account_id;
-        END IF;
-        
-        RETURN NEW;
-    END IF;
-    
-    -- Si es DELETE
-    IF TG_OP = 'DELETE' THEN
-        IF OLD.type = 'income' THEN
-            UPDATE public.accounts 
-            SET balance = balance - OLD.amount 
-            WHERE id = OLD.account_id;
-        ELSE
-            UPDATE public.accounts 
-            SET balance = balance + OLD.amount 
-            WHERE id = OLD.account_id;
-        END IF;
-        
-        RETURN OLD;
-    END IF;
-    
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Servicios',
+  'expense',
+  '#84CC16',
+  'wifi',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Servicios' AND c.type = 'expense'
+);
 
--- 13. Trigger para actualizar balance automáticamente
-CREATE TRIGGER update_account_balance_trigger
-    AFTER INSERT OR UPDATE OR DELETE ON public.transactions
-    FOR EACH ROW EXECUTE FUNCTION update_account_balance();
-
--- 14. Índices para mejor rendimiento
-CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON public.accounts(user_id);
-CREATE INDEX IF NOT EXISTS idx_categories_user_id ON public.categories(user_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON public.transactions(user_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON public.transactions(account_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_category_id ON public.transactions(category_id);
-CREATE INDEX IF NOT EXISTS idx_transactions_date ON public.transactions(date DESC);
-CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON public.transactions(user_id, date DESC);
+INSERT INTO public.categories (id, user_id, name, type, color, icon, is_active)
+SELECT 
+  uuid_generate_v4(),
+  u.id,
+  'Otros Gastos',
+  'expense',
+  '#6B7280',
+  'dots-horizontal',
+  true
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.categories c 
+  WHERE c.user_id = u.id AND c.name = 'Otros Gastos' AND c.type = 'expense'
+);

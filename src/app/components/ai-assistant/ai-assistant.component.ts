@@ -17,6 +17,24 @@ interface ChatMessage {
   selector: 'app-ai-assistant',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
+  styleUrls: ['./ai-assistant.component.css'],
+  styles: [`
+    .message-content {
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      max-width: none !important;
+    }
+    .message-assistant .flex-1 {
+      min-width: 0;
+      width: 100%;
+    }
+    .chat-container {
+      width: 100%;
+      overflow-x: hidden;
+    }
+  `],
   template: `
     <div class="min-h-screen bg-gradient-to-br from-violet-50 to-purple-100 dark:from-gray-900 dark:to-gray-800 flex flex-col">
       <!-- Header -->
@@ -67,7 +85,7 @@ interface ChatMessage {
 
       <!-- Chat Messages -->
       <div class="flex-1 overflow-hidden">
-        <div #messagesContainer class="h-full overflow-y-auto p-4 space-y-4">
+        <div #messagesContainer class="h-full overflow-y-auto p-4 chat-container">
           <!-- Welcome Message -->
           <div *ngIf="messages.length === 0" class="text-center py-12">
             <div class="bg-gradient-to-r from-violet-500 to-purple-600 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 shadow-xl">
@@ -85,57 +103,61 @@ interface ChatMessage {
           </div>
 
           <!-- Chat Messages -->
-          <div *ngFor="let message of messages; trackBy: trackByMessageId" 
-               [ngClass]="message.type === 'user' ? 'flex justify-end' : 'flex justify-start'">
-            
-            <!-- User Message -->
-            <div *ngIf="message.type === 'user'" 
-                 class="max-w-[80%] bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-3xl rounded-br-lg px-6 py-4 shadow-lg">
-              <p class="font-medium">{{ message.content }}</p>
-              <p class="text-xs text-blue-100 mt-2">{{ formatTime(message.timestamp) }}</p>
-            </div>
-
-            <!-- Assistant Message -->
-            <div *ngIf="message.type === 'assistant'" class="max-w-[85%] space-y-3">
-              <div class="flex items-start space-x-3">
-                <div class="bg-gradient-to-r from-violet-500 to-purple-600 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                  </svg>
+          <div class="space-y-4 w-full">
+            <div *ngFor="let message of messages; trackBy: trackByMessageId" class="w-full">
+              
+              <!-- User Message (Right Side) -->
+              <div *ngIf="message.type === 'user'" class="flex justify-end mb-4 message-user">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-3xl rounded-br-lg px-6 py-4 shadow-lg max-w-[80%]">
+                  <p class="font-medium">{{ message.content }}</p>
+                  <p class="text-xs text-blue-100 mt-2">{{ formatTime(message.timestamp) }} - Usuario</p>
                 </div>
-                <div class="flex-1">
-                  <div class="bg-white dark:bg-gray-700 rounded-3xl rounded-bl-lg px-6 py-4 shadow-lg border border-violet-100 dark:border-gray-600">
-                    <!-- Loading State -->
-                    <div *ngIf="message.isLoading" class="flex items-center space-x-2">
-                      <div class="flex space-x-1">
-                        <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce"></div>
-                        <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
-                        <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                      </div>
-                      <span class="text-sm text-gray-500 dark:text-gray-400">Analizando...</span>
-                    </div>
-
-                    <!-- Message Content -->
-                    <div *ngIf="!message.isLoading">
-                      <p class="text-gray-800 dark:text-gray-200 leading-relaxed">{{ message.content }}</p>
+              </div>
+              
+              <!-- Assistant Message (Left Side) -->
+              <div *ngIf="message.type === 'assistant'" class="flex justify-start mb-4 message-assistant">
+                <div class="flex items-start space-x-3 w-full max-w-none">
+                  <div class="bg-gradient-to-r from-violet-500 to-purple-600 rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 mt-1">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="bg-white dark:bg-gray-700 rounded-3xl rounded-bl-lg px-6 py-4 shadow-lg border border-violet-100 dark:border-gray-600 w-full">
                       
-                      <!-- Suggestions -->
-                      <div *ngIf="message.suggestions && message.suggestions.length > 0" class="mt-4 space-y-2">
-                        <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">💡 Sugerencias:</p>
-                        <ul class="space-y-1">
-                          <li *ngFor="let suggestion of message.suggestions" 
-                              class="text-sm text-gray-700 dark:text-gray-300 flex items-start">
-                            <span class="text-violet-500 mr-2">•</span>
-                            {{ suggestion }}
-                          </li>
-                        </ul>
+                      <!-- Loading State -->
+                      <div *ngIf="message.isLoading" class="flex items-center space-x-2">
+                        <div class="flex space-x-1">
+                          <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce"></div>
+                          <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                          <div class="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">🤖 Analizando tus datos...</span>
                       </div>
-
-                      <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">{{ formatTime(message.timestamp) }}</p>
+                      
+                      <!-- Message Content -->
+                      <div *ngIf="!message.isLoading" class="w-full">
+                        <div class="message-content text-gray-800 dark:text-gray-200 leading-relaxed">{{ message.content }}</div>
+                        
+                        <!-- Suggestions -->
+                        <div *ngIf="message.suggestions && message.suggestions.length > 0" class="mt-4 space-y-2">
+                          <h4 class="text-sm font-semibold text-violet-600 dark:text-violet-400">💡 Sugerencias:</h4>
+                          <ul class="space-y-1">
+                            <li *ngFor="let suggestion of message.suggestions" 
+                                class="text-sm text-gray-700 dark:text-gray-300 flex items-start">
+                              <span class="text-violet-500 mr-2 flex-shrink-0">•</span>
+                              <span class="flex-1 word-wrap break-words">{{ suggestion }}</span>
+                            </li>
+                          </ul>
+                        </div>
+                        
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">{{ formatTime(message.timestamp) }} - IA</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+              
             </div>
           </div>
         </div>
@@ -151,12 +173,10 @@ interface ChatMessage {
               formControlName="message"
               placeholder="Pregúntame sobre tus finanzas..."
               class="w-full px-6 py-4 bg-gray-50 dark:bg-gray-700 border-2 border-violet-200 dark:border-gray-600 rounded-3xl focus:ring-4 focus:ring-violet-500/20 focus:border-violet-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
-              [disabled]="isLoading"
             />
           </div>
           <button
             type="submit"
-            [disabled]="messageForm.invalid || isLoading"
             class="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white p-4 rounded-3xl shadow-lg transition-all transform hover:scale-105 active:scale-95 disabled:transform-none"
           >
             <svg 
@@ -194,23 +214,28 @@ export class AIAssistantComponent implements OnInit {
   quickActions = [
     {
       label: 'Analizar Presupuesto',
-      prompt: 'Analiza mi presupuesto actual y dame recomendaciones',
+      prompt: 'Analiza mi presupuesto completo con todos mis datos financieros actuales. Incluye mi balance, ingresos, gastos por categoría y tasa de ahorro. Dame recomendaciones específicas para Colombia.',
       icon: '📊'
     },
     {
-      label: 'Consejos de Ahorro',
-      prompt: '¿Cómo puedo ahorrar más dinero?',
-      icon: '💰'
+      label: 'Optimizar Gastos',
+      prompt: 'Revisa mis gastos recientes y encuentra exactamente dónde estoy gastando más. Dame estrategias concretas para reducir gastos en mis categorías más costosas.',
+      icon: '✂️'
     },
     {
-      label: 'Patrones de Gasto',
-      prompt: 'Analiza mis patrones de gasto y encuentra oportunidades de mejora',
-      icon: '📈'
-    },
-    {
-      label: 'Metas Financieras',
-      prompt: 'Ayúdame a establecer metas financieras realistas',
+      label: 'Plan de Ahorro',
+      prompt: 'Basado en mi situación financiera actual, crea un plan de ahorro específico con metas mensuales alcanzables. Incluye estrategias para aumentar mi tasa de ahorro.',
       icon: '🎯'
+    },
+    {
+      label: 'Salud Financiera',
+      prompt: 'Evalúa mi salud financiera general comparándola con estándares para Colombia. Identifica mis fortalezas y las áreas más urgentes que debo mejorar.',
+      icon: '💚'
+    },
+    {
+      label: 'Emergencias',
+      prompt: 'Analiza si tengo suficiente dinero para emergencias y ayúdame a crear un fondo de emergencia basado en mis gastos mensuales actuales.',
+      icon: '🚨'
     }
   ];
 
@@ -236,28 +261,59 @@ export class AIAssistantComponent implements OnInit {
       const userMessage = this.messageForm.get('message')?.value.trim();
       
       if (userMessage) {
-        // Add user message
+        // Add user message first
         this.addMessage('user', userMessage);
+        console.log('User message added');
         
-        // Add loading assistant message
-        const loadingId = this.addMessage('assistant', '', true);
-        
-        // Clear form
+        // Clear form and disable it immediately
         this.messageForm.reset();
+        this.messageForm.disable();
         this.isLoading = true;
+        
+        // Add loading assistant message with a unique timestamp-based ID
+        const assistantId = `assistant_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        const assistantMessage: ChatMessage = {
+          id: assistantId,
+          type: 'assistant',
+          content: '',
+          timestamp: new Date(),
+          isLoading: true
+        };
+        
+        this.messages.push(assistantMessage);
+        console.log('Assistant loading message added:', assistantMessage);
+        this.scrollToBottom();
 
         try {
           // Get AI response
           const response = await this.geminiService.getFinancialAdvice(userMessage);
+          console.log('AI response received:', response);
           
-          // Update loading message with response
-          this.updateMessage(loadingId, response.message, false, response.suggestions);
+          // Update the assistant message directly
+          const messageToUpdate = this.messages.find(m => m.id === assistantId);
+          if (messageToUpdate && messageToUpdate.type === 'assistant') {
+            console.log('Full AI response content:', response.message);
+            console.log('AI response length:', response.message.length);
+            messageToUpdate.content = response.message;
+            messageToUpdate.isLoading = false;
+            messageToUpdate.suggestions = response.suggestions;
+            console.log('Assistant message updated with content length:', messageToUpdate.content.length);
+            this.scrollToBottom();
+          } else {
+            console.error('Assistant message not found or wrong type:', messageToUpdate);
+          }
           
         } catch (error) {
           console.error('Error getting AI response:', error);
-          this.updateMessage(loadingId, 'Lo siento, hubo un error al procesar tu consulta. Por favor intenta de nuevo.', false);
+          const messageToUpdate = this.messages.find(m => m.id === assistantId);
+          if (messageToUpdate && messageToUpdate.type === 'assistant') {
+            messageToUpdate.content = 'Lo siento, hubo un error al procesar tu consulta. Por favor intenta de nuevo.';
+            messageToUpdate.isLoading = false;
+            this.scrollToBottom();
+          }
         } finally {
           this.isLoading = false;
+          this.messageForm.enable();
           setTimeout(() => {
             this.messageInput?.nativeElement?.focus();
           }, 100);
@@ -272,7 +328,7 @@ export class AIAssistantComponent implements OnInit {
   }
 
   addMessage(type: 'user' | 'assistant', content: string, loading = false): string {
-    const id = Date.now().toString();
+    const id = `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const message: ChatMessage = {
       id,
       type,
@@ -281,7 +337,9 @@ export class AIAssistantComponent implements OnInit {
       isLoading: loading
     };
 
+    console.log('Adding message:', { type, content, loading, id, messageType: message.type });
     this.messages.push(message);
+    console.log('Current messages:', this.messages.map(m => ({ id: m.id, type: m.type, contentLength: m.content.length })));
     this.scrollToBottom();
     return id;
   }
@@ -289,10 +347,20 @@ export class AIAssistantComponent implements OnInit {
   updateMessage(id: string, content: string, loading = false, suggestions?: string[]) {
     const message = this.messages.find(m => m.id === id);
     if (message) {
-      message.content = content;
-      message.isLoading = loading;
-      message.suggestions = suggestions;
+      console.log('Updating message:', { id, originalType: message.type, contentLength: content.length, loading });
+      
+      // Extra validation to ensure we don't change message type accidentally
+      if (message.type === 'assistant') {
+        message.content = content;
+        message.isLoading = loading;
+        message.suggestions = suggestions;
+        console.log('Assistant message updated successfully');
+      } else {
+        console.error('Attempted to update non-assistant message:', message);
+      }
       this.scrollToBottom();
+    } else {
+      console.error('Message not found for ID:', id);
     }
   }
 

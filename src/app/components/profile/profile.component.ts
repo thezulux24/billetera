@@ -208,9 +208,9 @@ export class ProfileComponent implements OnInit {
     this.profileForm = this.fb.group({
       full_name: ['', Validators.required],
       username: ['', Validators.required],
-      preferred_currency: ['USD', Validators.required],
+      preferred_currency: ['COP', Validators.required],
       language: ['es-ES', Validators.required],
-      timezone: ['America/Mexico_City', Validators.required]
+      timezone: ['America/Bogota', Validators.required]
     });
   }
 

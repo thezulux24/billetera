@@ -103,31 +103,93 @@ export class SupabaseService {
 
   // ========== PROFILE METHODS ==========
   async getProfile(): Promise<Profile | null> {
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .select('*')
-      .single();
+    const user = this._currentUser.value;
+    if (!user) return null;
 
-    if (error) {
-      console.error('Error fetching profile:', error);
+    try {
+      // First try to get existing profile
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, preferred_currency, language, timezone, created_at, updated_at')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        // Try to create profile if it doesn't exist
+        return await this.createProfile(user.id, user.email);
+      }
+
+      // If no profile found, create one
+      if (!data) {
+        return await this.createProfile(user.id, user.email);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in getProfile:', error);
       return null;
     }
+  }
 
-    return data;
+  private async createProfile(userId: string, email?: string): Promise<Profile | null> {
+    try {
+      const newProfile = {
+        id: userId,
+        username: email?.split('@')[0] || 'usuario',
+        full_name: email || '',
+        avatar_url: null,
+        preferred_currency: 'COP',
+        language: 'es-ES',
+        timezone: 'America/Bogota'
+      };
+
+      // Use upsert to handle cases where profile might already exist
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .upsert([newProfile], { onConflict: 'id' })
+        .select('id, username, full_name, avatar_url, preferred_currency, language, timezone, created_at, updated_at')
+        .single();
+
+      if (error) {
+        console.error('Error creating/updating profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in createProfile:', error);
+      return null;
+    }
   }
 
   async updateProfile(profile: Partial<Profile>): Promise<Profile> {
-    const { data, error } = await this.supabase
-      .from('profiles')
-      .update(profile)
-      .select()
-      .single();
+    const user = this._currentUser.value;
+    if (!user) throw new Error('No user logged in');
 
-    if (error) {
-      throw new Error(error.message);
+    try {
+      const updateData = {
+        ...profile,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await this.supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', user.id)
+        .select('id, username, full_name, avatar_url, preferred_currency, language, timezone, created_at, updated_at')
+        .single();
+
+      if (error) {
+        console.error('Error updating profile:', error);
+        throw new Error(error.message);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error in updateProfile:', error);
+      throw error;
     }
-
-    return data;
   }
 
   // ========== ACCOUNT METHODS ==========
@@ -252,6 +314,8 @@ export class SupabaseService {
     }
   }
 
+
+
   // ========== TRANSACTION METHODS ==========
   async getTransactions(limit?: number, offset?: number): Promise<Transaction[]> {
     let query = this.supabase
@@ -358,62 +422,69 @@ export class SupabaseService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    // Fetch all data in parallel
-    const [accounts, recentTransactions, monthlyTransactions] = await Promise.all([
-      this.getAccounts(),
-      this.getTransactions(10), // Recent 10 transactions
-      this.getTransactionsByDateRange(monthStart, monthEnd)
-    ]);
+    try {
+      // Fetch all data in parallel
+      const [accounts, recentTransactions, monthlyTransactions] = await Promise.all([
+        this.getAccounts(),
+        this.getTransactions(10), // Recent 10 transactions
+        this.getTransactionsByDateRange(monthStart, monthEnd)
+      ]);
+      
 
-    // Calculate monthly totals
-    const monthlyIncome = monthlyTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
 
-    const monthlyExpenses = monthlyTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      // Calculate monthly totals
+      const monthlyIncome = monthlyTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
 
-    // Calculate total balance
-    const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
+      const monthlyExpenses = monthlyTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
 
-    // Get top categories for this month
-    const categoryTotals = monthlyTransactions
-      .filter(t => t.category)
-      .reduce((acc, t) => {
-        const categoryId = t.category!.id;
-        if (!acc[categoryId]) {
-          acc[categoryId] = {
-            category: t.category!,
-            totalAmount: 0,
-            transactionCount: 0,
-            percentage: 0
-          };
-        }
-        acc[categoryId].totalAmount += t.amount;
-        acc[categoryId].transactionCount += 1;
-        return acc;
-      }, {} as Record<string, any>);
+      // Calculate total balance
+      const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
 
-    const topCategories = Object.values(categoryTotals)
-      .sort((a: any, b: any) => b.totalAmount - a.totalAmount)
-      .slice(0, 5);
+      // Get top categories for this month
+      const categoryTotals = monthlyTransactions
+        .filter(t => t.category)
+        .reduce((acc, t) => {
+          const categoryId = t.category!.id;
+          if (!acc[categoryId]) {
+            acc[categoryId] = {
+              category: t.category!,
+              totalAmount: 0,
+              transactionCount: 0,
+              percentage: 0
+            };
+          }
+          acc[categoryId].totalAmount += t.amount;
+          acc[categoryId].transactionCount += 1;
+          return acc;
+        }, {} as Record<string, any>);
 
-    // Calculate percentages
-    const totalCategoryAmount = topCategories.reduce((sum: number, cat: any) => sum + cat.totalAmount, 0);
-    topCategories.forEach((cat: any) => {
-      cat.percentage = totalCategoryAmount > 0 ? (cat.totalAmount / totalCategoryAmount) * 100 : 0;
-    });
+      const topCategories = Object.values(categoryTotals)
+        .sort((a: any, b: any) => b.totalAmount - a.totalAmount)
+        .slice(0, 5);
 
-    return {
-      accounts,
-      totalBalance,
-      recentTransactions,
-      monthlyIncome,
-      monthlyExpenses,
-      monthlyNet: monthlyIncome - monthlyExpenses,
-      topCategories
-    };
+      // Calculate percentages
+      const totalCategoryAmount = topCategories.reduce((sum: number, cat: any) => sum + cat.totalAmount, 0);
+      topCategories.forEach((cat: any) => {
+        cat.percentage = totalCategoryAmount > 0 ? (cat.totalAmount / totalCategoryAmount) * 100 : 0;
+      });
+
+      return {
+        accounts,
+        totalBalance,
+        recentTransactions,
+        monthlyIncome,
+        monthlyExpenses,
+        monthlyNet: monthlyIncome - monthlyExpenses,
+        topCategories
+      };
+    } catch (error) {
+      console.error('Error in getDashboardData:', error);
+      throw error;
+    }
   }
 
   async getPeriodSummary(startDate: string, endDate: string): Promise<PeriodSummary> {
@@ -452,12 +523,14 @@ export class SupabaseService {
       cat.percentage = totalCategoryAmount > 0 ? (cat.totalAmount / totalCategoryAmount) * 100 : 0;
     });
 
+    const sortedCategoryBreakdown = [...categoryBreakdown].sort((a: any, b: any) => b.totalAmount - a.totalAmount);
+
     return {
       totalIncome,
       totalExpenses,
       netAmount: totalIncome - totalExpenses,
       transactionCount: transactions.length,
-      categoryBreakdown: categoryBreakdown.sort((a: any, b: any) => b.totalAmount - a.totalAmount)
+      categoryBreakdown: sortedCategoryBreakdown
     };
   }
 }

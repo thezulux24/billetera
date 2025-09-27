@@ -93,23 +93,23 @@ import { LoanCalculation, AmortizationEntry } from '../../models/loan.models';
             <!-- Term -->
             <div class="space-y-3">
               <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Plazo (años)
+                Número de Cuotas
               </label>
               <div class="grid grid-cols-4 gap-2">
                 <button
                   type="button"
-                  *ngFor="let year of commonTerms"
-                  (click)="selectTerm(year)"
-                  [class]="getTermButtonClass(year)"
+                  *ngFor="let months of commonTerms"
+                  (click)="selectTerm(months)"
+                  [class]="getTermButtonClass(months)"
                 >
-                  {{ year }}
+                  {{ months }}
                 </button>
               </div>
               <input
                 type="number"
-                formControlName="termYears"
+                formControlName="termMonths"
                 (input)="calculateLoan()"
-                placeholder="Años personalizados"
+                placeholder="Cuotas personalizadas"
                 class="w-full px-4 py-4 border-2 border-blue-200 dark:border-gray-600 rounded-2xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 bg-blue-50/50 dark:bg-gray-700 text-gray-900 dark:text-white font-semibold placeholder-gray-500 transition-all"
               />
             </div>
@@ -243,7 +243,8 @@ export class CreditSimulatorComponent {
   loanForm: FormGroup;
   currentCalculation: LoanCalculation | null = null;
   showFullTable = false;
-  commonTerms = [1, 2, 3, 5, 10, 15, 20, 30];
+  commonTerms = [12, 24, 36, 48, 60, 72, 84, 96]; // Cuotas mensuales comunes
+  userCurrency = 'COP'; // Se cargará desde el perfil
 
   constructor(
     private readonly fb: FormBuilder,
@@ -253,8 +254,11 @@ export class CreditSimulatorComponent {
       loanAmount: [100000, [Validators.required, Validators.min(1)]],
       interestRate: [12, [Validators.required, Validators.min(0.01)]],
       interestRateType: ['annual', [Validators.required]],
-      termYears: [5, [Validators.required, Validators.min(1)]]
+      termMonths: [36, [Validators.required, Validators.min(1)]]
     });
+
+    // Cargar moneda del usuario
+    this.loadUserCurrency();
 
     // Calculate initial loan
     this.calculateLoan();
@@ -266,19 +270,18 @@ export class CreditSimulatorComponent {
       const principal = parseFloat(values.loanAmount);
       const interestRate = parseFloat(values.interestRate) / 100;
       const interestRateType = values.interestRateType;
-      const years = parseFloat(values.termYears);
+      const totalMonths = parseFloat(values.termMonths);
       
-      if (principal > 0 && interestRate > 0 && years > 0) {
+      if (principal > 0 && interestRate > 0 && totalMonths > 0) {
         // Convert to annual rate if needed
         const annualRate = interestRateType === 'monthly' ? interestRate * 12 : interestRate;
-        this.currentCalculation = this.performLoanCalculation(principal, annualRate, years);
+        this.currentCalculation = this.performLoanCalculation(principal, annualRate, totalMonths);
       }
     }
   }
 
-  private performLoanCalculation(principal: number, annualRate: number, years: number): LoanCalculation {
+  private performLoanCalculation(principal: number, annualRate: number, totalMonths: number): LoanCalculation {
     const monthlyRate = annualRate / 12;
-    const totalMonths = years * 12;
     
     // Calculate monthly payment using the standard loan formula
     const monthlyPayment = principal * 
@@ -337,13 +340,13 @@ export class CreditSimulatorComponent {
     };
   }
 
-  selectTerm(years: number) {
-    this.loanForm.patchValue({ termYears: years });
+  selectTerm(months: number) {
+    this.loanForm.patchValue({ termMonths: months });
     this.calculateLoan();
   }
 
-  getTermButtonClass(years: number): string {
-    const isSelected = this.loanForm.get('termYears')?.value === years;
+  getTermButtonClass(months: number): string {
+    const isSelected = this.loanForm.get('termMonths')?.value === months;
     const baseClass = 'py-3 px-4 rounded-xl font-semibold transition-all';
     
     return `${baseClass} ${
@@ -407,12 +410,34 @@ export class CreditSimulatorComponent {
   }
 
   formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('es-ES', {
+    return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'USD',
+      currency: this.userCurrency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
+  }
+
+  private async loadUserCurrency() {
+    try {
+      // Importar dinámicamente el servicio para evitar dependencias circulares
+      const { CurrencyService } = await import('../../services/currency.service');
+      
+      // Obtener instancia del servicio mediante inyección manual
+      const currencyService = new CurrencyService();
+      await currencyService.loadUserCurrencyFromProfile();
+      
+      currencyService.currentCurrency$.subscribe(currency => {
+        this.userCurrency = currency.code;
+        // Recalcular si ya hay una simulación
+        if (this.currentCalculation) {
+          this.calculateLoan();
+        }
+      });
+    } catch (error) {
+      console.error('Error loading user currency:', error);
+      // Mantener USD como fallback
+    }
   }
 
   goBack() {

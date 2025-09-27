@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { SupabaseService } from '../../services/supabase.service';
 import { CurrencyService } from '../../services/currency.service';
-import { DashboardData } from '../../models/finance.models';
+import { DashboardData, Profile } from '../../models/finance.models';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 
 @Component({
@@ -19,7 +19,7 @@ import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
           <div class="flex items-center justify-between">
             <div>
               <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
-                Hola {{ (userEmail || '').split('@')[0] || 'Usuario' }}
+                Hola {{ getUserDisplayName() }}
               </h1>
               <p class="text-sm text-gray-500 dark:text-gray-400">
                 {{ getCurrentDate() }}
@@ -38,6 +38,12 @@ import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
           <!-- Profile Menu -->
           <div *ngIf="showProfileMenu" class="absolute right-4 top-16 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-50">
             <div class="py-2">
+              <button 
+                (click)="goToProfile()" 
+                class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Ver Perfil
+              </button>
               <button 
                 (click)="signOut()" 
                 class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -291,6 +297,7 @@ import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 })
 export class DashboardComponent implements OnInit {
   userEmail = '';
+  userProfile: Profile | null = null;
   dashboardData: DashboardData | null = null;
   isLoading = true;
   error = '';
@@ -325,6 +332,14 @@ export class DashboardComponent implements OnInit {
       this.isLoading = true;
       this.error = '';
       
+      // Check if user is authenticated first
+      const isLoggedIn = this.supabaseService.isLoggedIn;
+      
+      if (!isLoggedIn) {
+        this.error = 'Usuario no autenticado';
+        return;
+      }
+      
       // Load dashboard data and user profile
       const [dashboardData, profile] = await Promise.all([
         this.supabaseService.getDashboardData(),
@@ -332,13 +347,14 @@ export class DashboardComponent implements OnInit {
       ]);
       
       this.dashboardData = dashboardData;
+      this.userProfile = profile;
       
       // Load user's preferred currency
       if (profile?.preferred_currency) {
         this.currencyService.loadUserCurrencyFromProfile(profile.preferred_currency);
       }
     } catch (error: any) {
-      this.error = 'Error al cargar los datos: ' + error.message;
+      this.error = 'Error al cargar los datos: ' + (error?.message || 'Error desconocido');
       console.error('Error loading dashboard:', error);
     } finally {
       this.isLoading = false;
@@ -352,6 +368,16 @@ export class DashboardComponent implements OnInit {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  }
+
+  getUserDisplayName(): string {
+    if (this.userProfile?.full_name) {
+      return this.userProfile.full_name;
+    }
+    if (this.userProfile?.username) {
+      return this.userProfile.username;
+    }
+    return (this.userEmail || '').split('@')[0] || 'Usuario';
   }
 
   formatCurrency(amount: number): string {
@@ -372,5 +398,10 @@ export class DashboardComponent implements OnInit {
       day: 'numeric',
       month: 'long'
     });
+  }
+
+  goToProfile() {
+    this.showProfileMenu = false; // Cerrar el menú
+    this.router.navigate(['/profile']);
   }
 }

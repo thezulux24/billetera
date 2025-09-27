@@ -1,0 +1,45 @@
+<!-- Simple Debug Template for Chat Messages -->
+<div class="space-y-4">
+  <div *ngFor="let message of messages; trackBy: trackByMessageId" class="w-full">
+    
+    <!-- Debug Info -->
+    <div class="text-xs text-gray-400 mb-1">
+      Tipo: {{ message.type }} | ID: {{ message.id }} | Loading: {{ message.isLoading }}
+    </div>
+    
+    <!-- User Message (Right Side) -->
+    <div *ngIf="message.type === 'user'" class="flex justify-end mb-4">
+      <div class="bg-blue-500 text-white rounded-lg px-4 py-2 max-w-xs">
+        <p>{{ message.content }}</p>
+        <p class="text-xs mt-1 opacity-75">{{ formatTime(message.timestamp) }}</p>
+      </div>
+    </div>
+    
+    <!-- Assistant Message (Left Side) -->
+    <div *ngIf="message.type === 'assistant'" class="flex justify-start mb-4">
+      <div class="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg px-4 py-2 max-w-md">
+        
+        <!-- Loading -->
+        <div *ngIf="message.isLoading" class="text-sm">
+          🤖 Analizando...
+        </div>
+        
+        <!-- Content -->
+        <div *ngIf="!message.isLoading">
+          <div class="whitespace-pre-wrap">{{ message.content }}</div>
+          
+          <!-- Suggestions -->
+          <div *ngIf="message.suggestions && message.suggestions.length > 0" class="mt-2 text-sm">
+            <p class="font-bold">Sugerencias:</p>
+            <ul class="list-disc list-inside">
+              <li *ngFor="let suggestion of message.suggestions">{{ suggestion }}</li>
+            </ul>
+          </div>
+          
+          <p class="text-xs mt-1 opacity-75">{{ formatTime(message.timestamp) }}</p>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>

@@ -8,6 +8,8 @@ import { CreateAccountComponent } from './components/create-account/create-accou
 import { CreditSimulatorComponent } from './components/credit-simulator/credit-simulator.component';
 import { AIAssistantComponent } from './components/ai-assistant/ai-assistant.component';
 import { ProfileComponent } from './components/profile/profile.component';
+import { TransactionsComponent } from './components/transactions/transactions.component';
+import { DebugComponent } from './components/debug/debug.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: '/login', pathMatch: 'full' },
@@ -20,6 +22,7 @@ export const routes: Routes = [
   { path: 'credit-simulator', component: CreditSimulatorComponent },
   { path: 'ai-assistant', component: AIAssistantComponent },
   { path: 'profile', component: ProfileComponent },
-  { path: 'transactions', redirectTo: '/dashboard' },
+  { path: 'transactions', component: TransactionsComponent },
+  { path: 'debug', component: DebugComponent },
   { path: '**', redirectTo: '/login' }
 ];

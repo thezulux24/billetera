@@ -141,26 +141,46 @@ import { Account, Category, TransactionType } from '../../models/finance.models'
           <!-- Category Selection -->
           <div class="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm">
             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Categoría
+              Categoría *
             </label>
-            <div class="grid grid-cols-2 gap-2" *ngIf="filteredCategories.length > 0; else noCategoriesTemplate">
+            <div *ngIf="selectedCategory" class="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div class="flex items-center space-x-2">
+                <div 
+                  class="w-8 h-8 rounded-lg flex items-center justify-center"
+                  [style.backgroundColor]="selectedCategory.color"
+                >
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-blue-700 dark:text-blue-300">{{ selectedCategory.name }}</span>
+                <button 
+                  type="button" 
+                  (click)="clearCategory()"
+                  class="ml-auto text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3" *ngIf="filteredCategories.length > 0; else noCategoriesTemplate">
               <button
                 type="button"
                 *ngFor="let category of filteredCategories"
                 (click)="selectCategory(category)"
-                [class]="getCategoryButtonClass(category)"
-              >
+                class="p-3 rounded-xl border-2 transition-all hover:scale-105"
+                [class]="selectedCategory?.id === category.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'">
                 <div class="flex flex-col items-center space-y-2">
                   <div 
                     class="w-12 h-12 rounded-xl flex items-center justify-center"
-                    [style.backgroundColor]="selectedCategory?.id === category.id ? category.color : 'transparent'"
-                    [style.border]="selectedCategory?.id !== category.id ? '2px solid ' + category.color : 'none'"
-                  >
-                    <svg class="w-6 h-6" [style.color]="selectedCategory?.id === category.id ? 'white' : category.color" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    [style.backgroundColor]="category.color">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getCategoryIcon(category.name)"/>
                     </svg>
                   </div>
-                  <span class="text-xs font-medium text-gray-900 dark:text-white text-center">
+                  <span class="text-xs font-medium text-gray-900 dark:text-white text-center leading-tight">
                     {{ category.name }}
                   </span>
                 </div>
@@ -168,8 +188,14 @@ import { Account, Category, TransactionType } from '../../models/finance.models'
             </div>
 
             <ng-template #noCategoriesTemplate>
-              <div class="text-center py-4">
-                <p class="text-gray-500 dark:text-gray-400 text-sm">No hay categorías disponibles</p>
+              <div class="text-center py-6">
+                <div class="mx-auto w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
+                  <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                  </svg>
+                </div>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-3">Cargando categorías...</p>
+                <div class="animate-pulse h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto"></div>
               </div>
             </ng-template>
           </div>
@@ -206,14 +232,20 @@ import { Account, Category, TransactionType } from '../../models/finance.models'
           <div class="pt-4">
             <button
               type="submit"
-              [disabled]="transactionForm.invalid || isLoading"
+              [disabled]="transactionForm.invalid || isLoading || !selectedCategory || !selectedAccount"
               [class]="getSubmitButtonClass()"
             >
               <svg *ngIf="isLoading" class="animate-spin w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {{ isLoading ? 'Guardando...' : (transactionType === 'income' ? 'Agregar Ingreso' : 'Agregar Gasto') }}
+              <span *ngIf="!isLoading">
+                {{ transactionType === 'income' ? 'Agregar Ingreso' : 'Agregar Gasto' }}
+                <span *ngIf="!selectedCategory || !selectedAccount" class="text-sm opacity-75 block">
+                  {{ !selectedAccount ? 'Selecciona una cuenta' : !selectedCategory ? 'Selecciona una categoría' : '' }}
+                </span>
+              </span>
+              <span *ngIf="isLoading">Guardando...</span>
             </button>
           </div>
         </form>
@@ -247,7 +279,7 @@ export class AddTransactionComponent implements OnInit {
     });
   }
 
-  async ngOnInit() {
+  ngOnInit(): void {
     // Get transaction type from query params
     this.route.queryParams.subscribe(params => {
       if (params['type'] && ['income', 'expense'].includes(params['type'])) {
@@ -256,7 +288,7 @@ export class AddTransactionComponent implements OnInit {
       }
     });
 
-    await this.loadData();
+    this.loadData();
   }
 
   async loadData() {
@@ -304,6 +336,26 @@ export class AddTransactionComponent implements OnInit {
     this.transactionForm.patchValue({ category_id: category.id });
   }
 
+  clearCategory() {
+    this.selectedCategory = null;
+    this.transactionForm.patchValue({ category_id: null });
+  }
+
+  getCategoryIcon(categoryName: string): string {
+    const iconMap: Record<string, string> = {
+      'Salario': 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+      'Freelance': 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m8 0H8m8 0v6a2 2 0 01-2 2H10a2 2 0 01-2-2V6m8 0H8',
+      'Inversiones': 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+      'Regalos': 'M12 3v1m0 0l4 4H8l4-4zm6 6l2-2m-2 2l-4-4m6 6h2m-2 0l-2-2m4 4h-6l4-4zm-8 6v1m0-1l-4-4h8l-4 4zm-6-6l-2 2m2-2l4 4m-6-6H2m2 0l2 2m-4-4h6L4 8z',
+      'Alimentación': 'M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z',
+      'Transporte': 'M9 17a2 2 0 11-4 0 2 2 0 014 0zM21 17a2 2 0 11-4 0 2 2 0 014 0zM7 17h10m-10 0V7a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 011-1h2a1 1 0 011 1v10',
+      'Vivienda': 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+      'Salud': 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+      'Educación': 'M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z'
+    };
+    return iconMap[categoryName] || 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z';
+  }
+
   getTypeButtonClass(type: TransactionType): string {
     const baseClass = 'flex items-center justify-center py-3 px-4 rounded-lg font-medium transition-colors';
     const activeClass = type === 'income' 
@@ -346,7 +398,17 @@ export class AddTransactionComponent implements OnInit {
   }
 
   async onSubmit() {
-    if (this.transactionForm.valid && this.selectedAccount) {
+    if (!this.selectedAccount) {
+      this.errorMessage = 'Por favor selecciona una cuenta';
+      return;
+    }
+
+    if (!this.selectedCategory) {
+      this.errorMessage = 'Por favor selecciona una categoría';
+      return;
+    }
+
+    if (this.transactionForm.valid) {
       this.isLoading = true;
       this.errorMessage = '';
 
@@ -355,7 +417,7 @@ export class AddTransactionComponent implements OnInit {
         
         await this.supabaseService.createTransaction({
           account_id: formValue.account_id,
-          category_id: formValue.category_id || undefined,
+          category_id: this.selectedCategory.id,
           type: this.transactionType,
           amount: parseFloat(formValue.amount),
           description: formValue.description || undefined,
@@ -370,6 +432,8 @@ export class AddTransactionComponent implements OnInit {
       } finally {
         this.isLoading = false;
       }
+    } else {
+      this.errorMessage = 'Por favor completa todos los campos requeridos';
     }
   }
 
